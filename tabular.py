@@ -189,7 +189,7 @@ class LEncoder(BaseEstimator, TransformerMixin):
             
             self.unk = max_value
             self.dictionary_size.append(len(le_dict))
-            col_name = X.column[col]
+            col_name = X.columns[col]
             self.encoders[col_name] = le_dict
             
         return self
@@ -197,7 +197,7 @@ class LEncoder(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None, **fit_params):
         output = list()
         for col in range(X.shape[1]):
-            col_name = X.column[col_name]
+            col_name = X.columns[col_name]
             le_dict = self.encoders[col]
             emb = X.iloc[:, col].fillna('_nan').apply(lambda x: le_dict.get(x, self.unk)).values
             output.append(emb)
