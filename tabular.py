@@ -92,10 +92,10 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import QuantileTransformer, PowerTransformer
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
-def custom_gelu(x):
+def gelu(x):
     return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
 
-get_custom_objects().update({'custom_gelu': Activation(custom_gelu)})
+get_custom_objects().update({'custom_gelu': Activation(gelu)})
 
 class Mish(Activation):
     '''
@@ -119,7 +119,7 @@ class Mish(Activation):
 def mish(inputs):
     return inputs * tf.math.tanh(tf.math.softplus(inputs))
 
-get_custom_objects().update({'Mish': Mish(mish)})
+get_custom_objects().update({'mish': Mish(mish)})
 
 class ItemFilterOut():
     def __init__(self, keys):
