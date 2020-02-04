@@ -198,7 +198,7 @@ class LEncoder(BaseEstimator, TransformerMixin):
         output = list()
         for col in range(X.shape[1]):
             col_name = X.columns[col]
-            le_dict = self.encoders[col]
+            le_dict = self.encoders[col_name]
             emb = X.iloc[:, col].fillna('_nan').apply(lambda x: le_dict.get(x, self.unk)).values
             output.append(emb)
         return output
