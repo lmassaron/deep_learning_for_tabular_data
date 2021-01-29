@@ -279,6 +279,8 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
 class DataGenerator(tf.keras.utils.Sequence):
     """
     Generates data for Keras
+    X: a pandas DataFrame
+    y: a pandas Series, a NumPy array or a List
     """
     def __init__(self, X, y,
                  tabular_transformer=None,
@@ -289,7 +291,11 @@ class DataGenerator(tf.keras.utils.Sequence):
         
         'Initialization'
         self.X = X
-        self.y = y
+	try:
+            # If a pandas Series, converting to a NumPy array
+            self.y = y.values
+	except:
+            self.y = np.array(y)
         self.tbt = tabular_transformer
         self.tabular_transformer = tabular_transformer
         self.batch_size = batch_size
