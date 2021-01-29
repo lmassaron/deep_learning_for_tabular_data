@@ -291,6 +291,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         
         'Initialization'
         self.X = X
+        
         try:
             # If a pandas Series, converting to a NumPy array
             self.y = y.values
