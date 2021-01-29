@@ -79,7 +79,7 @@ from sklearn.metrics import average_precision_score
 from sklearn.metrics import make_scorer
 
 import os
-from keras.utils import to_categorical
+from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import RobustScaler, QuantileTransformer, PowerTransformer
 
 from sklearn.metrics import confusion_matrix
@@ -359,4 +359,4 @@ class DataGenerator(tf.keras.utils.Sequence):
 
 
 if __name__ == "__main__":
-	pass
+    pass
