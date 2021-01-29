@@ -292,10 +292,10 @@ class DataGenerator(tf.keras.utils.Sequence):
         'Initialization'
         self.X = X
 	try:
-            # If a pandas Series, converting to a NumPy array
-            self.y = y.values
+		# If a pandas Series, converting to a NumPy array
+		self.y = y.values
 	except:
-            self.y = np.array(y)
+		self.y = np.array(y)
         self.tbt = tabular_transformer
         self.tabular_transformer = tabular_transformer
         self.batch_size = batch_size
