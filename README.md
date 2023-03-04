@@ -5,3 +5,8 @@ Deep Learning can be used also for predictions based on tabular data, the data y
 Workshop code on Colab:
 
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lmassaron/deep_learning_for_tabular_data/blob/master/deep-learning-for-tabular-data.ipynb)
+
+## Follow the tutorial on Youtube (GDG Venezia 2019)
+![https://www.youtube.com/watch?v=nQgUt_uADSE&t=1533s](./GDG_Venezia_2019.PNG) 
+
+https://www.youtube.com/watch?v=nQgUt_uADSE&t=1533s
