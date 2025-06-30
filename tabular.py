@@ -59,7 +59,7 @@ from tensorflow.keras import backend as K
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 
-from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
+from scikeras.wrappers import KerasClassifier, KerasRegressor
 from tensorflow.keras.layers import SpatialDropout1D
 
 from sklearn.experimental import enable_iterative_imputer
