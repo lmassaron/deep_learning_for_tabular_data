@@ -9,4 +9,4 @@ Workshop code on Colab:
 ## Follow the tutorial on Youtube (GDG Venezia 2019)
 <a href="https://www.youtube.com/watch?v=nQgUt_uADSE&t=1533s"><img src="./GDG_Venezia_2019.PNG" alt="GDG Venezia 2019" height="320px" align="center"></a>
 
-https://www.youtube.com/watch?v=nQgUt_uADSE&t=1533s
+https://www.youtube.com/watch?v=nQgUt_uADSE
