@@ -2,14 +2,10 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'# INFO messages are not printed
-
-# Loading packages
-import os
 import sys
 import numpy as np
 import pandas as pd
-import feather
+import torch
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline, FeatureUnion
@@ -29,20 +25,9 @@ from sklearn.metrics import accuracy_score, cohen_kappa_score, make_scorer
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.feature_selection import RFECV
 
-from tensorflow.keras.layers import Dense, BatchNormalization, Dropout, LeakyReLU, Flatten, GlobalAvgPool1D, GlobalMaxPool1D
-from tensorflow.keras.layers import Input, Embedding, Reshape, concatenate, Concatenate, MaxPooling1D, Conv1D, Conv2D
-from tensorflow.keras.models import Model
-from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from sklearn.metrics import recall_score, roc_auc_score, classification_report, confusion_matrix
 from sklearn.utils import class_weight
 from sklearn.metrics import precision_recall_fscore_support as score
-from tensorflow.keras.optimizers import Adam, Nadam
-from tensorflow.keras.models import load_model
-
-from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-
-import tensorflow as tf
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import train_test_split, ShuffleSplit
@@ -53,14 +38,11 @@ from sklearn.utils import class_weight
 import json
 import joblib
 
-from tensorflow.keras.utils import get_custom_objects
-from tensorflow.keras.layers import Activation
-from tensorflow.keras import backend as K
+import keras
+from keras import ops
+from keras.layers import Activation
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
-
-from scikeras.wrappers import KerasClassifier, KerasRegressor
-from tensorflow.keras.layers import SpatialDropout1D
 
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import IterativeImputer
@@ -79,7 +61,6 @@ from sklearn.metrics import average_precision_score
 from sklearn.metrics import make_scorer
 
 import os
-from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import RobustScaler, QuantileTransformer, PowerTransformer
 
 from sklearn.metrics import confusion_matrix
@@ -92,10 +73,22 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import QuantileTransformer, PowerTransformer
 from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
 
-def gelu(x):
-    return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
+def set_device():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("CUDA is available. Using GPU.")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+        print("MPS is available. Using Metal.")
+    else:
+        device = torch.device("cpu")
+        print("Using CPU.")
+    return device
 
-get_custom_objects().update({'custom_gelu': Activation(gelu)})
+def gelu(x):
+    return 0.5 * x * (1 + ops.tanh(ops.sqrt(2 / np.pi) * (x + 0.044715 * ops.power(x, 3))))
+
+keras.utils.get_custom_objects().update({'custom_gelu': Activation(gelu)})
 
 class Mish(Activation):
     '''
@@ -117,9 +110,9 @@ class Mish(Activation):
         self.__name__ = 'Mish'
 
 def mish(inputs):
-    return inputs * tf.math.tanh(tf.math.softplus(inputs))
+    return inputs * ops.tanh(ops.softplus(inputs))
 
-get_custom_objects().update({'mish': Mish(mish)})
+keras.utils.get_custom_objects().update({'mish': Mish(mish)})
 
 class ItemFilterOut():
     def __init__(self, keys):
@@ -276,7 +269,7 @@ class TabularTransformer(BaseEstimator, TransformerMixin):
         self.fit(X, y, **fit_params)
         return self.transform(X)
     
-class DataGenerator(tf.keras.utils.Sequence):
+class DataGenerator(keras.utils.Sequence):
     """
     Generates data for Keras
     X: a pandas DataFrame
@@ -286,9 +279,10 @@ class DataGenerator(tf.keras.utils.Sequence):
                  tabular_transformer=None,
                  batch_size=32, 
                  shuffle=False,
-                 dict_output=False
-                 ):
-        
+                 dict_output=False,
+                 device=None,
+                 **kwargs):
+        super().__init__(**kwargs)
         'Initialization'
         self.X = X
         
@@ -305,6 +299,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.indexes = self._build_index()
         self.on_epoch_end()
         self.item = 0
+        self.device = device
     
     def _build_index(self):
         """
@@ -355,6 +350,20 @@ class DataGenerator(tf.keras.utils.Sequence):
     def __getitem__(self, index):
         indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
         samples, labels = self.__data_generation(indexes)
+        
+        if self.device:
+            if isinstance(samples, list):
+                # Cast numeric part to float32, keep categorical as is (long)
+                samples_torch = [torch.from_numpy(samples[0].astype(np.float32)).to(self.device)]
+                samples_torch.extend([torch.from_numpy(s).to(self.device) for s in samples[1:]])
+                samples = samples_torch
+            else:
+                # Only numeric data
+                samples = torch.from_numpy(samples.astype(np.float32)).to(self.device)
+            
+            # Cast labels to float32 for the loss function
+            labels = torch.from_numpy(labels.astype(np.float32)).to(self.device)
+            
         return samples, labels
 
 
