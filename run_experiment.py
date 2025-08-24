@@ -193,7 +193,7 @@ keras.utils.get_custom_objects().update({'leaky-relu': Activation(LeakyReLU(nega
 
 def tabular_dnn(numeric_variables, categorical_variables, categorical_counts,
                 feature_selection_dropout=0.2, categorical_dropout=0.1,
-                first_dense = 256, second_dense = 256, dense_dropout = 0.2, 
+                first_dense = 512, second_dense = 256, dense_dropout = 0.4, 
                 activation_type=gelu):
     
     numerical_inputs = Input(shape=(len(numeric_variables),))
@@ -205,19 +205,26 @@ def tabular_dnn(numeric_variables, categorical_variables, categorical_counts,
     for category in  categorical_variables:
         categorical_inputs.append(Input(shape=[1], name=category))
         category_counts = categorical_counts[category]
+        embedding_size = int(min(50, (category_counts + 1) / 2))
         categorical_embeddings.append(
             Embedding(category_counts+1, 
-                      int(np.log1p(category_counts)+1), 
+                      embedding_size, 
                       name = category + "_embed")(categorical_inputs[-1]))
 
     categorical_logits = Concatenate(name = "categorical_conc")([Flatten()(SpatialDropout1D(categorical_dropout)(cat_emb)) 
                                                                  for cat_emb in categorical_embeddings])
 
     x = Concatenate()([numerical_feature_selection, categorical_logits])
+    x = BatchNormalization()(x)
+    
     x = Dense(first_dense, activation=activation_type)(x)
-    x = Dropout(dense_dropout)(x)  
-    x = Dense(second_dense, activation=activation_type)(x)
+    x = BatchNormalization()(x)
     x = Dropout(dense_dropout)(x)
+      
+    x = Dense(second_dense, activation=activation_type)(x)
+    x = BatchNormalization()(x)
+    x = Dropout(dense_dropout)(x)
+    
     output = Dense(1, activation="sigmoid")(x)
     model = Model([numerical_inputs] + categorical_inputs, output)
     
@@ -294,7 +301,7 @@ for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
     
     model = tabular_dnn(numeric_variables, categorical_variables, categorical_levels, 
                         feature_selection_dropout=0.1, categorical_dropout=0.1,
-                        first_dense=256, second_dense=256, dense_dropout=0.1,
+                        first_dense=512, second_dense=256, dense_dropout=0.4,
                         activation_type=gelu)
     
     model = compile_model(model, 'binary_crossentropy', [AUC(name='auc'), AveragePrecision(name='average_precision')], Adam(learning_rate=0.0001))
@@ -355,7 +362,7 @@ print(f"Categorical levels: {categorical_levels}\n")
 
 model = tabular_dnn(numeric_variables, categorical_variables, categorical_levels, 
                     feature_selection_dropout=0.1, categorical_dropout=0.1,
-                    first_dense=256, second_dense=256, dense_dropout=0.1,
+                    first_dense=512, second_dense=256, dense_dropout=0.4,
                     activation_type=gelu)
     
 model = compile_model(model, 'binary_crossentropy', [AUC(name='auc'), AveragePrecision(name='average_precision')], Adam(learning_rate=0.0001))    

@@ -27,3 +27,4 @@ venv.bak/
 
 # OS-specific
 .DS_Store
+.python-version
