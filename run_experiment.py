@@ -9,9 +9,8 @@ os.environ['KERAS_BACKEND'] = 'torch'
 import numpy as np
 import pandas as pd
 from time import time
-import pprint
-import joblib
 import xgboost as xgb
+import optuna
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, average_precision_score
 from sklearn.preprocessing import LabelEncoder
@@ -72,14 +71,84 @@ print("X train:", X.shape)
 print("X test:", Xt.shape)
 
 # -----------------------------------------------------------------------------
-# XGBoost Model
+# XGBoost Model Hyperparameter Tuning with Optuna
 # -----------------------------------------------------------------------------
 
-print("\n--- Training XGBoost Model ---")
+# Set to True to run the Optuna hyperparameter search, False to use pre-defined best parameters
+RUN_OPTUNA = False
+
+print("\n--- Preparing XGBoost Hyperparameters ---")
 SEED = 42
 FOLDS = 5
 skf = StratifiedKFold(n_splits=FOLDS, shuffle=True, random_state=SEED)
 
+if RUN_OPTUNA:
+    print("Running Optuna hyperparameter search...")
+    def objective(trial):
+        params = {
+            'objective': 'binary:logistic',
+            'eval_metric': 'auc',
+            'random_state': SEED,
+            'n_estimators': 1000,
+            'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1, log=True),
+            'max_depth': trial.suggest_int('max_depth', 3, 8),
+            'subsample': trial.suggest_float('subsample', 0.7, 1.0),
+            'colsample_bytree': trial.suggest_float('colsample_bytree', 0.7, 1.0),
+            'gamma': trial.suggest_float('gamma', 0, 5),
+            'min_child_weight': trial.suggest_int('min_child_weight', 1, 10),
+            'reg_alpha': trial.suggest_float('reg_alpha', 0, 5),
+            'reg_lambda': trial.suggest_float('reg_lambda', 0, 5),
+            'early_stopping_rounds': 50,
+        }
+
+        roc_auc_scores = []
+        for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
+            X_train, y_train = X.iloc[train_idx], y[train_idx]
+            X_test, y_test = X.iloc[test_idx], y[test_idx]
+
+            model = xgb.XGBClassifier(**params)
+            model.fit(X_train, y_train, 
+                      eval_set=[(X_test, y_test)], 
+                      verbose=False)
+            
+            preds = model.predict_proba(X_test)[:, 1]
+            roc_auc_scores.append(roc_auc_score(y_test, preds))
+
+        return np.mean(roc_auc_scores)
+
+    study = optuna.create_study(direction='maximize')
+    study.optimize(objective, n_trials=60)
+
+    print("Best trial:")
+    trial = study.best_trial
+    print(f"  Value: {trial.value}")
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print(f"    {key}: {value}")
+
+    best_xgb_params = trial.params
+else:
+    print("Using pre-defined best XGBoost parameters.")
+    best_xgb_params = {
+        'learning_rate': 0.030349507598209553,
+        'max_depth': 7,
+        'subsample': 0.9084927904518441,
+        'colsample_bytree': 0.8360770278639972,
+        'gamma': 0.17720426633881678,
+        'min_child_weight': 1,
+        'reg_alpha': 0.5635762222028822,
+        'reg_lambda': 1.409136086036318
+    }
+
+best_xgb_params['objective'] = 'binary:logistic'
+best_xgb_params['eval_metric'] = 'auc'
+best_xgb_params['random_state'] = SEED
+
+# -----------------------------------------------------------------------------
+# XGBoost Model Training with Best Hyperparameters
+# -----------------------------------------------------------------------------
+
+print("\n--- Training XGBoost Model with Best Hyperparameters ---")
 xgb_oof = np.zeros(len(X))
 xgb_preds = np.zeros(len(Xt))
 xgb_roc_auc = list()
@@ -90,7 +159,7 @@ for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
     X_train, y_train = X.iloc[train_idx], y[train_idx]
     X_test, y_test = X.iloc[test_idx], y[test_idx]
     
-    model = xgb.XGBClassifier(objective='binary:logistic', eval_metric='auc', n_estimators=500, random_state=SEED, early_stopping_rounds=50)
+    model = xgb.XGBClassifier(**best_xgb_params, n_estimators=5000, early_stopping_rounds=50)
     model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=100)
     
     fold_preds = model.predict_proba(X_test)[:,1]
@@ -98,6 +167,8 @@ for fold, (train_idx, test_idx) in enumerate(skf.split(X, y)):
     xgb_roc_auc.append(roc_auc_score(y_test, fold_preds))
     xgb_average_precision.append(average_precision_score(y_test, fold_preds))
     xgb_preds += model.predict_proba(Xt[X.columns])[:,1] / FOLDS
+
+
 
 print(f"Average cv roc auc score {np.mean(xgb_roc_auc):0.3f} ± {np.std(xgb_roc_auc):0.3f}")
 print(f"Average cv roc average precision {np.mean(xgb_average_precision):0.3f} ± {np.std(xgb_average_precision):0.3f}")

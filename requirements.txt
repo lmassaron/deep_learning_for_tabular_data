@@ -7,3 +7,4 @@ keras>=3.0.0
 matplotlib
 notebook
 lightgbm
+optuna
