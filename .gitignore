@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Keras & Model Files
+*.keras
+*.h5
+*.hdf5
+
+# CSV & Submission Files
+*.csv
+
+# Images
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# OS-specific
+.DS_Store
